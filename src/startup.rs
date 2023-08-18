@@ -1,13 +1,19 @@
-use actix_web::{dev::Server, web, App, HttpServer};
+use actix_web::dev::Server;
+use actix_web::middleware::Logger;
+use actix_web::{web, App, HttpServer};
+use sqlx::PgPool;
 use std::net::TcpListener;
 
 use crate::routes;
 
-pub fn run(listener: TcpListener) -> std::io::Result<Server> {
-    let server = HttpServer::new(|| {
+pub fn run(listener: TcpListener, pool: PgPool) -> std::io::Result<Server> {
+    let connection = web::Data::new(pool);
+    let server = HttpServer::new(move || {
         App::new()
+            .wrap(Logger::default())
             .route("/health_check", web::get().to(routes::health_check))
             .route("subscriptions", web::post().to(routes::subscribe))
+            .app_data(connection.clone())
     })
     .listen(listener)?
     .run();
